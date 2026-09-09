@@ -12,7 +12,9 @@ import type { QRDesign } from '../lib/types'
  * Eye Style / colors / logo controls can actually change what's rendered.
  */
 
-type DotStyleKey =
+// Add/merge this into lib/types.ts
+
+export type DotStyleKey =
   | 'square'
   | 'dots'
   | 'rounded'
@@ -22,7 +24,7 @@ type DotStyleKey =
   | 'diamond'
   | 'tiny'
 
-type EyeStyleKey =
+export type EyeStyleKey =
   | 'square_square'
   | 'square_dot'
   | 'rounded_rounded'
@@ -32,19 +34,18 @@ type EyeStyleKey =
   | 'dot_dot'
   | 'dot_square'
 
-interface ExtendedQRDesign extends QRDesign {
+export interface QRDesign {
+  qr_color?: string
+  qr_bg_color?: string
+  qr_size?: number
+  qr_logo?: string | null
+  // New fields — must also exist on the backend model/serializer
   dot_style?: DotStyleKey
   eye_style?: EyeStyleKey
   corner_frame_color?: string
   corner_dot_color?: string
   add_white_frame?: boolean
   logo_size?: number
-}
-
-interface QRCodeProps {
-  value: string
-  design?: ExtendedQRDesign | null
-  id?: string
 }
 
 // qr-code-styling dot shapes: 'square' | 'dots' | 'rounded' | 'classy' | 'classy-rounded' | 'extra-rounded'

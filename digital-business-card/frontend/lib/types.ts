@@ -1,63 +1,35 @@
-export interface User {
-  id: number
-  phone: string
-  name?: string | null
-  title?: string | null
-  company?: string | null
-  age?: number | null
-  gender?: string | null
-  email?: string | null
-  location?: string | null
-  facebook?: string | null
-  wiber?: string | null
-  website?: string | null
-  profile_image?: string | null
-  background_image?: string | null
-  created_at: string
-  updated_at?: string | null
-}
+// Add/merge this into lib/types.ts
 
-export interface UserUpdate {
-  name?: string
-  title?: string
-  company?: string
-  age?: number
-  gender?: string
-  email?: string
-  location?: string
-  facebook?: string
-  wiber?: string
-  website?: string
-  profile_image?: string
-  background_image?: string
-}
+export type DotStyleKey =
+  | 'square'
+  | 'dots'
+  | 'rounded'
+  | 'soft_bubble'
+  | 'classy'
+  | 'classy_round'
+  | 'diamond'
+  | 'tiny'
+
+export type EyeStyleKey =
+  | 'square_square'
+  | 'square_dot'
+  | 'rounded_rounded'
+  | 'rounded_dot'
+  | 'rounded_square'
+  | 'square_rounded'
+  | 'dot_dot'
+  | 'dot_square'
 
 export interface QRDesign {
-  id: number
-  user_id: number
-  qr_color: string
-  qr_bg_color: string
-  qr_size: number
-  qr_logo?: string | null
-  created_at: string
-  updated_at?: string | null
-}
-
-export interface QRDesignUpdate {
   qr_color?: string
   qr_bg_color?: string
   qr_size?: number
-  qr_logo?: string
-}
-
-export interface CardData {
-  user: User
-  qr_design: QRDesign | null
-  vcf_content: string
-  text_content: string
-}
-
-export interface LoginResponse {
-  token: string
-  user: User
+  qr_logo?: string | null
+  // New fields — must also exist on the backend model/serializer
+  dot_style?: DotStyleKey
+  eye_style?: EyeStyleKey
+  corner_frame_color?: string
+  corner_dot_color?: string
+  add_white_frame?: boolean
+  logo_size?: number
 }
