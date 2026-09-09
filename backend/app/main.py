@@ -8,14 +8,16 @@ models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(title="Digital Business Card API", version="1.0.0")
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://digital-business-card-orpin-psi.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
 
 # Include routers
 app.include_router(user_router)
