@@ -1,28 +1,29 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from . import models, database, schemas
 from .routers import user_router, card_router
+from . import models, database, schemas
 
+# Create tables
 models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(title="Digital Business Card API", version="1.0.0")
 
-# CORS - custom OPTIONS handler-гүйгээр, зөвхөн middleware ашиглана
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://digital-business-card-orpin-psi.vercel.app",
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+# Include routers
 app.include_router(user_router)
 app.include_router(card_router)
 
-@app.get("/")
-async def root():
-    return {"message": "Digital Business Card API status OK"}
-
+# Auth endpoint
 @app.post("/api/auth/login", response_model=schemas.LoginResponse)
 async def login(payload: schemas.LoginRequest, db: database.SessionLocal = Depends(database.get_db)):
     from .crud import get_user_by_phone, create_user, create_session
@@ -37,7 +38,10 @@ async def login(payload: schemas.LoginRequest, db: database.SessionLocal = Depen
 
     session = create_session(db, user.id, expires_minutes=60 * 24 * 7)
 
-    return {"token": session.token, "user": user}
+    return {
+        "token": session.token,
+        "user": user
+    }
 
 @app.get("/api/health")
 async def health_check():
@@ -45,4 +49,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=10000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
