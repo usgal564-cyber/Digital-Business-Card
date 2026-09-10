@@ -13,11 +13,9 @@ import {
   FaGlobe,
   FaMapMarkerAlt,
   FaUserPlus,
-  FaCopy,
 } from 'react-icons/fa'
 import { getPublicCard } from '../../../lib/api'
 import type { User } from '../../../lib/types'
-import AnimatedTriangleBackground from '../../../components/AnimatedTriangleBackground'
 
 const BRAND_BLUE = '#3266F0'
 
@@ -54,20 +52,6 @@ export default function PublicCardPage() {
     toast.success('Харилцагч татагдлаа')
   }
 
-  const handleSaveVcfAsText = () => {
-    if (!vcf) return
-    const blob = new Blob([vcf], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${user?.name || 'contact'}.txt`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-    toast.success('.txt файл татагдлаа — Notepad-аар нээж болно')
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -102,11 +86,8 @@ export default function PublicCardPage() {
   ].filter(Boolean) as { icon: React.ComponentType<{ className?: string }>; value: string; label: string }[]
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center py-10 px-4 overflow-hidden bg-[#eaf3fb]">
-      {/* Animated low-poly triangle background */}
-      <AnimatedTriangleBackground />
-
-      <div className="relative z-10 w-full max-w-sm rounded-[28px] overflow-hidden shadow-2xl bg-white">
+    <div className="min-h-screen bg-gray-200 flex items-center justify-center py-10 px-4">
+      <div className="w-full max-w-sm rounded-[28px] overflow-hidden shadow-2xl bg-white">
         <div
           className="text-white text-center pt-8 pb-16 px-4"
           style={{ backgroundColor: BRAND_BLUE }}
@@ -148,6 +129,7 @@ export default function PublicCardPage() {
                 key={i}
                 href={href || undefined}
                 className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-white transition-colors"
+                style={{ ['--hover-bg' as any]: BRAND_BLUE }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = BRAND_BLUE)}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
               >
@@ -162,27 +144,13 @@ export default function PublicCardPage() {
             <InfoRow key={i} icon={row.icon} label={row.label} value={row.value} />
           ))}
 
-          <div className="flex gap-2 mt-4">
-            <button
-              onClick={handleAddContact}
-              className="flex-1 flex items-center justify-center gap-2 text-white py-3.5 rounded-full font-semibold hover:opacity-90"
-              style={{ backgroundColor: BRAND_BLUE }}
-            >
-              <FaUserPlus /> Add to Contacts
-            </button>
-            <button
-              onClick={handleSaveVcfAsText}
-              title="Текст файл (.txt) татаж, Notepad-аар нээх"
-              aria-label="Текст файл татах"
-              className="w-14 flex items-center justify-center rounded-full border-2 hover:bg-gray-50 shrink-0"
-              style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE }}
-            >
-              <FaCopy />
-            </button>
-          </div>
-          <p className="text-center text-[11px] text-gray-400 -mt-1">
-            Хажуугийн товч нь мэдээллийг .txt файлаар татаж, Notepad зэргээр шууд нээх боломжтой
-          </p>
+          <button
+            onClick={handleAddContact}
+            className="w-full flex items-center justify-center gap-2 text-white py-3.5 rounded-full font-semibold hover:opacity-90 mt-4"
+            style={{ backgroundColor: BRAND_BLUE }}
+          >
+            <FaUserPlus /> Add to Contacts
+          </button>
         </div>
       </div>
     </div>

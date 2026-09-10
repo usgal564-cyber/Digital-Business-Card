@@ -1,20 +1,21 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import type { QRDesign } from '../lib/types'
 
 /**
  * Requires: npm install qr-code-styling
  *
  * react-qr-code (the previous implementation) can only render plain square
- * modules — it has no concept of dot shape, eye shape, or a center logo.
- * qr-code-styling supports all of that, so the design page's Dot Style /
- * Eye Style / colors / logo controls can actually change what's rendered.
+ * modules — it has no concept of dot shape or eye shape. qr-code-styling
+ * supports all of that, so the design page's Dot Style / Eye Style / colors
+ * controls actually change what's rendered.
+ *
+ * NOTE: logo support has been removed from this component on request.
+ * In its place, the white frame now has a configurable frame_color.
  */
 
-// Add/merge this into lib/types.ts
-
-export type DotStyleKey =
+type DotStyleKey =
   | 'square'
   | 'dots'
   | 'rounded'
@@ -24,7 +25,7 @@ export type DotStyleKey =
   | 'diamond'
   | 'tiny'
 
-export type EyeStyleKey =
+type EyeStyleKey =
   | 'square_square'
   | 'square_dot'
   | 'rounded_rounded'
@@ -34,18 +35,24 @@ export type EyeStyleKey =
   | 'dot_dot'
   | 'dot_square'
 
-export interface QRDesign {
-  qr_color?: string
-  qr_bg_color?: string
-  qr_size?: number
-  qr_logo?: string | null
-  // New fields — must also exist on the backend model/serializer
+export interface ExtendedQRDesign extends Omit<QRDesign, 'qr_logo'> {
   dot_style?: DotStyleKey
   eye_style?: EyeStyleKey
   corner_frame_color?: string
   corner_dot_color?: string
   add_white_frame?: boolean
-  logo_size?: number
+  frame_color?: string
+}
+
+interface QRCodeProps {
+  value: string
+  design?: ExtendedQRDesign | null
+  id?: string
+}
+
+/** Methods a parent page can call via a ref, e.g. qrRef.current?.download('my-qr') */
+export interface QRCodeHandle {
+  download: (filename?: string) => void
 }
 
 // qr-code-styling dot shapes: 'square' | 'dots' | 'rounded' | 'classy' | 'classy-rounded' | 'extra-rounded'
@@ -88,7 +95,7 @@ function mapEyeTypes(style?: EyeStyleKey) {
   return map[style || 'square_square'] || map.square_square
 }
 
-export default function QRCode({ value, design, id }: QRCodeProps) {
+const QRCode = forwardRef<QRCodeHandle, QRCodeProps>(function QRCode({ value, design, id }, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
   const qrRef = useRef<any>(null)
 
@@ -97,9 +104,8 @@ export default function QRCode({ value, design, id }: QRCodeProps) {
   const bgColor = design?.qr_bg_color || '#ffffff'
   const cornerSquareColor = design?.corner_frame_color || fgColor
   const cornerDotColor = design?.corner_dot_color || fgColor
-  const logo = design?.qr_logo || undefined
-  const logoSize = (design?.logo_size ?? 30) / 100
   const withFrame = !!design?.add_white_frame
+  const frameColor = design?.frame_color || '#ffffff'
   const eyeTypes = mapEyeTypes(design?.eye_style)
 
   useEffect(() => {
@@ -115,9 +121,7 @@ export default function QRCode({ value, design, id }: QRCodeProps) {
         height: size,
         data: value,
         margin: 4,
-        image: logo,
-        qrOptions: { errorCorrectionLevel: logo ? 'H' : 'M' },
-        imageOptions: { crossOrigin: 'anonymous', margin: 4, imageSize: logoSize },
+        qrOptions: { errorCorrectionLevel: 'M' },
         dotsOptions: { color: fgColor, type: mapDotType(design?.dot_style) as any },
         backgroundOptions: { color: bgColor },
         cornersSquareOptions: { color: cornerSquareColor, type: eyeTypes.square as any },
@@ -129,7 +133,8 @@ export default function QRCode({ value, design, id }: QRCodeProps) {
         containerRef.current.innerHTML = ''
         instance.append(containerRef.current)
         // Tag the generated <svg>/<canvas> with the requested id so
-        // download handlers using document.getElementById(id) keep working.
+        // any legacy download handlers using document.getElementById(id)
+        // keep working too.
         if (id) {
           const el = containerRef.current.querySelector('svg, canvas')
           if (el) el.setAttribute('id', id)
@@ -148,21 +153,28 @@ export default function QRCode({ value, design, id }: QRCodeProps) {
     bgColor,
     cornerSquareColor,
     cornerDotColor,
-    logo,
-    logoSize,
     design?.dot_style,
     design?.eye_style,
     id,
   ])
 
+  useImperativeHandle(ref, () => ({
+    download: (filename = 'qr-code') => {
+      qrRef.current?.download({ name: filename, extension: 'png' })
+    },
+  }))
+
   return (
     <div
-      className={`inline-flex items-center justify-center rounded-2xl p-4 ${
-        withFrame ? 'border-4 border-white shadow-md' : ''
-      }`}
-      style={{ backgroundColor: bgColor }}
+      className="inline-flex items-center justify-center rounded-2xl p-4"
+      style={{
+        backgroundColor: withFrame ? frameColor : bgColor,
+        boxShadow: withFrame ? '0 0 0 1px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.08)' : 'none',
+      }}
     >
       <div ref={containerRef} />
     </div>
   )
-}
+})
+
+export default QRCode

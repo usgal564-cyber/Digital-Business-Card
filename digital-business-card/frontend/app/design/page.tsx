@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import {
@@ -9,21 +9,22 @@ import {
   FaUndo,
   FaDownload,
   FaInfoCircle,
-  FaCheck,
-  FaUpload,
 } from 'react-icons/fa'
 import Sidebar from '../../components/Sidebar'
-import QRCode from '../../components/QRCode'
+import QRCode, { type ExtendedQRDesign as QRDesignStyle, type QRCodeHandle } from '../../components/QRCode'
 import { getCurrentUser, getQRDesign, updateQRDesign } from '../../lib/api'
 import type { QRDesign, User } from '../../lib/types'
 
 /**
  * NOTE FOR BACKEND / lib/types.ts:
  * The fields below (dot_style, eye_style, corner_frame_color, corner_dot_color,
- * add_white_frame, logo_size) do not exist yet on QRDesign. They are typed here
- * as an extension so the page compiles; add them to QRDesign in lib/types.ts and
- * to the API payload in updateQRDesign once the backend supports them. Until then
- * they are saved to local state only and are NOT sent to updateQRDesign.
+ * add_white_frame, frame_color) do not exist yet on QRDesign. They are typed
+ * here as an extension so the page compiles; add them to QRDesign in
+ * lib/types.ts and to the API payload in updateQRDesign once the backend
+ * supports them. Until then they are saved to local state only and are sent
+ * to updateQRDesign on a best-effort basis (see handleSave).
+ *
+ * Logo support has been intentionally removed from this page.
  */
 type DotStyleKey = 'square' | 'dots' | 'rounded' | 'soft_bubble' | 'classy' | 'classy_round' | 'diamond' | 'tiny'
 type EyeStyleKey =
@@ -36,13 +37,13 @@ type EyeStyleKey =
   | 'dot_dot'
   | 'dot_square'
 
-interface ExtendedQRDesign extends QRDesign {
+interface ExtendedQRDesign extends Omit<QRDesign, 'qr_logo'> {
   dot_style?: DotStyleKey
   eye_style?: EyeStyleKey
   corner_frame_color?: string
   corner_dot_color?: string
   add_white_frame?: boolean
-  logo_size?: number
+  frame_color?: string
 }
 
 const DEFAULTS: Partial<ExtendedQRDesign> = {
@@ -54,7 +55,7 @@ const DEFAULTS: Partial<ExtendedQRDesign> = {
   corner_frame_color: '#0F172A',
   corner_dot_color: '#0F172A',
   add_white_frame: false,
-  logo_size: 30,
+  frame_color: '#ffffff',
 }
 
 const DOT_STYLES: { key: DotStyleKey; label: string }[] = [
@@ -95,10 +96,10 @@ const PRESET_COLORS = [
 export default function DesignPage() {
   const [user, setUser] = useState<User | null>(null)
   const [design, setDesign] = useState<ExtendedQRDesign | null>(null)
-  const [logoName, setLogoName] = useState('Лого сонгоогүй')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const router = useRouter()
+  const qrRef = useRef<QRCodeHandle>(null)
 
   useEffect(() => {
     const token =
@@ -112,7 +113,6 @@ export default function DesignPage() {
       .then(([u, d]) => {
         setUser(u)
         setDesign({ ...DEFAULTS, ...d })
-        if (d.qr_logo) setLogoName('Лого сонгосон')
       })
       .catch(() => toast.error('Мэдээлэл авахад алдаа гарлаа'))
       .finally(() => setLoading(false))
@@ -122,27 +122,26 @@ export default function DesignPage() {
     setDesign((prev) => (prev ? { ...prev, [key]: value } : prev))
   }
 
-  const handleLogo = (file: File | null) => {
-    if (!file) return
-    setLogoName(file.name)
-    const reader = new FileReader()
-    reader.onload = () => handleChange('qr_logo', reader.result as string)
-    reader.readAsDataURL(file)
-  }
-
   const handleSave = async () => {
     if (!design) return
     setSaving(true)
     try {
-      // Only fields the backend currently supports are sent.
-      // dot_style / eye_style / corner_frame_color / corner_dot_color /
-      // add_white_frame / logo_size are UI-only until the backend adds them.
+      // Only fields the backend currently supports are guaranteed to persist.
+      // The rest (dot_style, eye_style, corner_*_color, add_white_frame,
+      // frame_color) are passed along too so that once the backend adds
+      // those columns nothing here needs to change; extra keys are simply
+      // ignored by APIs that don't recognize them yet.
       const updated = await updateQRDesign({
         qr_color: design.qr_color,
         qr_bg_color: design.qr_bg_color,
         qr_size: design.qr_size,
-        qr_logo: design.qr_logo || undefined,
-      })
+        dot_style: design.dot_style,
+        eye_style: design.eye_style,
+        corner_frame_color: design.corner_frame_color,
+        corner_dot_color: design.corner_dot_color,
+        add_white_frame: design.add_white_frame,
+        frame_color: design.frame_color,
+      } as Partial<QRDesign>)
       setDesign((prev) => (prev ? { ...prev, ...updated } : updated))
       toast.success('Хадгаллаа')
     } catch {
@@ -153,23 +152,11 @@ export default function DesignPage() {
   }
 
   const handleReset = () => {
-    setDesign((prev) => (prev ? { ...prev, ...DEFAULTS, qr_logo: null } : prev))
-    setLogoName('Лого сонгоогүй')
+    setDesign((prev) => (prev ? { ...prev, ...DEFAULTS } : prev))
   }
 
   const handleDownload = () => {
-    const svg = document.getElementById('design-qr-svg')
-    if (!svg) return
-    const svgData = new XMLSerializer().serializeToString(svg)
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
-    const url = URL.createObjectURL(svgBlob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'qr-code.svg'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    qrRef.current?.download('qr-code')
   }
 
   const shareUrl =
@@ -189,6 +176,18 @@ export default function DesignPage() {
   const eyeLabel =
     EYE_STYLES.find((e) => e.key === design?.eye_style)?.label || 'Square / Square'
 
+  const qrDesignStyle: QRDesignStyle = {
+    qr_color: design?.qr_color,
+    qr_bg_color: design?.qr_bg_color,
+    qr_size: design?.qr_size,
+    dot_style: design?.dot_style,
+    eye_style: design?.eye_style,
+    corner_frame_color: design?.corner_frame_color,
+    corner_dot_color: design?.corner_dot_color,
+    add_white_frame: design?.add_white_frame,
+    frame_color: design?.frame_color,
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 flex">
       <div className="w-64 hidden md:block">
@@ -200,7 +199,7 @@ export default function DesignPage() {
             <FaPaintBrush className="text-primary" /> QR Дизайн тохиргоо
           </h1>
           <p className="text-gray-500 text-sm mb-6">
-            QR кодын хэлбэр, өнгө, дэвсгэр, хүрээ, лого зэргийг тохируулах
+            QR кодын хэлбэр, өнгө, дэвсгэр, хүрээ зэргийг тохируулах
           </p>
 
           <div className="grid lg:grid-cols-[1fr_400px] gap-6 items-start">
@@ -280,7 +279,13 @@ export default function DesignPage() {
                     <button
                       key={c}
                       type="button"
-                      onClick={() => handleChange('qr_color', c)}
+                      onClick={() => {
+                        // Preset applies to dots + both corner colors at once,
+                        // so switching a preset restyles the whole code.
+                        handleChange('qr_color', c)
+                        handleChange('corner_frame_color', c)
+                        handleChange('corner_dot_color', c)
+                      }}
                       className={`w-8 h-8 rounded-full border-2 ${
                         design?.qr_color === c ? 'border-primary' : 'border-transparent'
                       }`}
@@ -313,13 +318,13 @@ export default function DesignPage() {
                 </div>
               </section>
 
-              {/* Frame & logo */}
+              {/* Frame (logo section removed) */}
               <section>
-                <h2 className="font-semibold text-dark text-sm mb-4">Хүрээ ба Лого</h2>
+                <h2 className="font-semibold text-dark text-sm mb-4">Хүрээ</h2>
 
                 <div className="flex items-center justify-between border border-gray-200 rounded-xl px-4 py-3 mb-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-700">Цагаан хүрээ нэмэх</p>
+                    <p className="text-sm font-medium text-gray-700">Хүрээ нэмэх</p>
                     <p className="text-xs text-gray-400">QR кодын эргэн тойронд цэвэрхэн хүрээ</p>
                   </div>
                   <button
@@ -337,38 +342,17 @@ export default function DesignPage() {
                   </button>
                 </div>
 
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  QR лого (төвд зураг)
-                </label>
-                <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 bg-gray-50 rounded-xl px-4 py-8 text-sm text-primary cursor-pointer hover:bg-gray-100">
-                  <FaUpload />
-                  Лого сонгох
-                  <span className="text-xs text-gray-400 font-normal">PNG, JPG, SVG 2MB хүртэл</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleLogo(e.target.files?.[0] || null)}
+                <div
+                  className={`bg-gray-50 rounded-xl p-3 transition-opacity ${
+                    design?.add_white_frame ? 'opacity-100' : 'opacity-40 pointer-events-none'
+                  }`}
+                >
+                  <ColorField
+                    label="Хүрээний өнгө"
+                    value={design?.frame_color || DEFAULTS.frame_color!}
+                    onChange={(v) => handleChange('frame_color', v)}
                   />
-                </label>
-                <p className="text-xs text-gray-400 mt-2">{logoName}</p>
-
-                {design?.qr_logo && (
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between text-sm text-gray-700 mb-2">
-                      <span>Лого хэмжээ</span>
-                      <span className="font-medium">{design?.logo_size ?? DEFAULTS.logo_size}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={10}
-                      max={50}
-                      value={design?.logo_size ?? DEFAULTS.logo_size}
-                      onChange={(e) => handleChange('logo_size', Number(e.target.value))}
-                      className="w-full accent-primary"
-                    />
-                  </div>
-                )}
+                </div>
               </section>
 
               <button
@@ -400,7 +384,12 @@ export default function DesignPage() {
 
               <div className="flex flex-col items-center justify-center bg-gray-50 rounded-xl py-10 border border-dashed border-gray-200">
                 {value ? (
-                  <QRCode id="design-qr-svg" value={value} design={design} />
+                  <QRCode
+                    id="design-qr-svg"
+                    value={value}
+                    design={qrDesignStyle}
+                    ref={qrRef}
+                  />
                 ) : (
                   <p className="text-gray-400 text-sm">QR код үүсгэхэд алдаа гарлаа</p>
                 )}
@@ -419,18 +408,14 @@ export default function DesignPage() {
                   value={design?.qr_color || DEFAULTS.qr_color!}
                   swatch={design?.qr_color || DEFAULTS.qr_color!}
                 />
-                <PreviewRow label="Хүрээ" value={design?.add_white_frame ? 'Идэвхтэй' : 'None'} />
                 <PreviewRow
-                  label="Лого"
+                  label="Хүрээ"
                   value={
-                    design?.qr_logo ? (
-                      <span className="flex items-center gap-1 text-green-600">
-                        <FaCheck className="text-xs" /> Байршуулсан
-                      </span>
-                    ) : (
-                      'None'
-                    )
+                    design?.add_white_frame
+                      ? `Идэвхтэй (${design?.frame_color || DEFAULTS.frame_color})`
+                      : 'None'
                   }
+                  swatch={design?.add_white_frame ? design?.frame_color || DEFAULTS.frame_color : undefined}
                 />
               </div>
 
@@ -473,8 +458,8 @@ function StyleCard({
       }`}
     >
       {selected && (
-        <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-primary text-white flex items-center justify-center">
-          <FaCheck className="text-[9px]" />
+        <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-primary text-white flex items-center justify-center text-[9px]">
+          ✓
         </span>
       )}
       <span className="grid grid-cols-3 gap-0.5">
