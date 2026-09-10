@@ -3,18 +3,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import type { QRDesign } from '../lib/types'
 
-/**
- * Requires: npm install qr-code-styling
- *
- * react-qr-code (the previous implementation) can only render plain square
- * modules — it has no concept of dot shape or eye shape. qr-code-styling
- * supports all of that, so the design page's Dot Style / Eye Style / colors
- * controls actually change what's rendered.
- *
- * NOTE: logo support has been removed from this component on request.
- * In its place, the white frame now has a configurable frame_color.
- */
-
 type DotStyleKey =
   | 'square'
   | 'dots'
@@ -50,13 +38,10 @@ interface QRCodeProps {
   id?: string
 }
 
-/** Methods a parent page can call via a ref, e.g. qrRef.current?.download('my-qr') */
 export interface QRCodeHandle {
   download: (filename?: string) => void
 }
 
-// qr-code-styling dot shapes: 'square' | 'dots' | 'rounded' | 'classy' | 'classy-rounded' | 'extra-rounded'
-// 'soft_bubble', 'diamond', 'tiny' have no 1:1 native equivalent — mapped to the closest look.
 function mapDotType(style?: DotStyleKey) {
   switch (style) {
     case 'dots':
@@ -70,17 +55,15 @@ function mapDotType(style?: DotStyleKey) {
     case 'classy_round':
       return 'classy-rounded'
     case 'diamond':
-      return 'classy' // closest built-in look; true diamond needs a custom SVG shape
+      return 'classy'
     case 'tiny':
-      return 'square' // rendered small via a lower dotsOptions size ratio isn't supported natively
+      return 'square'
     case 'square':
     default:
       return 'square'
   }
 }
 
-// qr-code-styling corner square shapes: 'square' | 'dot' | 'extra-rounded'
-// corner dot shapes: 'square' | 'dot'
 function mapEyeTypes(style?: EyeStyleKey) {
   const map: Record<EyeStyleKey, { square: 'square' | 'dot' | 'extra-rounded'; dot: 'square' | 'dot' }> = {
     square_square: { square: 'square', dot: 'square' },
@@ -112,33 +95,36 @@ const QRCode = forwardRef<QRCodeHandle, QRCodeProps>(function QRCode({ value, de
     let cancelled = false
 
     async function render() {
-      if (!value || !containerRef.current) return
-      const { default: QRCodeStyling } = await import('qr-code-styling')
-      if (cancelled) return
+      // Сервер дээр ажиллахаас сэргийлнэ
+      if (typeof window === 'undefined' || !value || !containerRef.current) return
 
-      const instance = new QRCodeStyling({
-        width: size,
-        height: size,
-        data: value,
-        margin: 4,
-        qrOptions: { errorCorrectionLevel: 'M' },
-        dotsOptions: { color: fgColor, type: mapDotType(design?.dot_style) as any },
-        backgroundOptions: { color: bgColor },
-        cornersSquareOptions: { color: cornerSquareColor, type: eyeTypes.square as any },
-        cornersDotOptions: { color: cornerDotColor, type: eyeTypes.dot as any },
-      })
+      try {
+        const { default: QRCodeStyling } = await import('qr-code-styling')
+        if (cancelled) return
 
-      qrRef.current = instance
-      if (containerRef.current) {
-        containerRef.current.innerHTML = ''
-        instance.append(containerRef.current)
-        // Tag the generated <svg>/<canvas> with the requested id so
-        // any legacy download handlers using document.getElementById(id)
-        // keep working too.
-        if (id) {
-          const el = containerRef.current.querySelector('svg, canvas')
-          if (el) el.setAttribute('id', id)
+        const instance = new QRCodeStyling({
+          width: size,
+          height: size,
+          data: value,
+          margin: 4,
+          qrOptions: { errorCorrectionLevel: 'M' },
+          dotsOptions: { color: fgColor, type: mapDotType(design?.dot_style) as any },
+          backgroundOptions: { color: bgColor },
+          cornersSquareOptions: { color: cornerSquareColor, type: eyeTypes.square as any },
+          cornersDotOptions: { color: cornerDotColor, type: eyeTypes.dot as any },
+        })
+
+        qrRef.current = instance
+        if (containerRef.current) {
+          containerRef.current.innerHTML = ''
+          instance.append(containerRef.current)
+          if (id) {
+            const el = containerRef.current.querySelector('svg, canvas')
+            if (el) el.setAttribute('id', id)
+          }
         }
+      } catch (err) {
+        console.error('Failed to load qr-code-styling:', err)
       }
     }
 

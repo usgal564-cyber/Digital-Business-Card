@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import toast from 'react-hot-toast'
 import {
   FaPaintBrush,
@@ -11,21 +12,15 @@ import {
   FaInfoCircle,
 } from 'react-icons/fa'
 import Sidebar from '../../components/Sidebar'
-import QRCode, { type ExtendedQRDesign as QRDesignStyle, type QRCodeHandle } from '../../components/QRCode'
+import type { ExtendedQRDesign as QRDesignStyle, QRCodeHandle } from '../../components/QRCode'
 import { getCurrentUser, getQRDesign, updateQRDesign } from '../../lib/api'
 import type { QRDesign, User } from '../../lib/types'
 
-/**
- * NOTE FOR BACKEND / lib/types.ts:
- * The fields below (dot_style, eye_style, corner_frame_color, corner_dot_color,
- * add_white_frame, frame_color) do not exist yet on QRDesign. They are typed
- * here as an extension so the page compiles; add them to QRDesign in
- * lib/types.ts and to the API payload in updateQRDesign once the backend
- * supports them. Until then they are saved to local state only and are sent
- * to updateQRDesign on a best-effort basis (see handleSave).
- *
- * Logo support has been intentionally removed from this page.
- */
+// QRCode компонентыг SSR унтрааж Dynamic-аар импортолж байна
+const QRCode = dynamic(() => import('../../components/QRCode'), {
+  ssr: false,
+})
+
 type DotStyleKey = 'square' | 'dots' | 'rounded' | 'soft_bubble' | 'classy' | 'classy_round' | 'diamond' | 'tiny'
 type EyeStyleKey =
   | 'square_square'
@@ -126,11 +121,6 @@ export default function DesignPage() {
     if (!design) return
     setSaving(true)
     try {
-      // Only fields the backend currently supports are guaranteed to persist.
-      // The rest (dot_style, eye_style, corner_*_color, add_white_frame,
-      // frame_color) are passed along too so that once the backend adds
-      // those columns nothing here needs to change; extra keys are simply
-      // ignored by APIs that don't recognize them yet.
       const updated = await updateQRDesign({
         qr_color: design.qr_color,
         qr_bg_color: design.qr_bg_color,
@@ -280,8 +270,6 @@ export default function DesignPage() {
                       key={c}
                       type="button"
                       onClick={() => {
-                        // Preset applies to dots + both corner colors at once,
-                        // so switching a preset restyles the whole code.
                         handleChange('qr_color', c)
                         handleChange('corner_frame_color', c)
                         handleChange('corner_dot_color', c)
@@ -318,7 +306,7 @@ export default function DesignPage() {
                 </div>
               </section>
 
-              {/* Frame (logo section removed) */}
+              {/* Frame */}
               <section>
                 <h2 className="font-semibold text-dark text-sm mb-4">Хүрээ</h2>
 
