@@ -9,9 +9,3 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 };
-
-<<<<<<< HEAD
-module.exports = nextConfig;
-=======
-module.exports = nextConfig;
->>>>>>> f3ac291 (update1)
