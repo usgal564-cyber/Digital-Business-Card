@@ -188,8 +188,43 @@ export default function CardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <div className="max-w-6xl mx-auto animate-pulse">
+        <div className="h-8 w-56 bg-gray-200 rounded-lg mb-6" />
+
+        <div className="grid lg:grid-cols-[400px_1fr] gap-6 items-start max-w-4xl mx-auto">
+          <div>
+            {/* Загвар сонгох skeleton */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
+              <div className="h-4 w-28 bg-gray-200 rounded mb-3" />
+              <div className="grid grid-cols-2 gap-2.5 mb-3">
+                <div className="h-10 bg-gray-100 rounded-xl" />
+                <div className="h-10 bg-gray-100 rounded-xl" />
+                <div className="h-10 bg-gray-100 rounded-xl" />
+                <div className="h-10 bg-gray-100 rounded-xl" />
+              </div>
+              <div className="h-10 bg-gray-200 rounded-full mb-2" />
+              <div className="h-3 w-3/4 bg-gray-100 rounded mx-auto" />
+            </div>
+
+            {/* Карт preview skeleton */}
+            <div className="w-full max-w-[400px] mx-auto rounded-[44px] bg-gray-100 min-h-[500px]" />
+
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <div className="h-4 w-10 bg-gray-200 rounded" />
+              <div className="h-6 w-12 bg-gray-200 rounded-full" />
+              <div className="h-4 w-14 bg-gray-200 rounded" />
+            </div>
+            <div className="h-3 w-40 bg-gray-100 rounded mx-auto mt-2" />
+          </div>
+
+          <div>
+            {/* Хэвлэх preview skeleton */}
+            <div className="w-full h-56 bg-gray-100 rounded-2xl mb-4" />
+            <div className="h-11 bg-gray-100 rounded-full mb-3" />
+            <div className="h-3 w-64 bg-gray-100 rounded mx-auto mb-3" />
+            <div className="h-11 bg-gray-200 rounded-full" />
+          </div>
+        </div>
       </div>
     )
   }
